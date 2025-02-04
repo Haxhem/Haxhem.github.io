@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: radial-gradient(circle, rgba(63, 94, 251, 1) 0%, rgba(252, 70, 107, 1) 100%);
+            color: #fff;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        .content-container {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            z-index: 1;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-family: 'Caveat', cursive;
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .description {
+            font-size: 18px;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .download-link {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #fff;
+            border-radius: 20px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .download-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        #model-viewer {
+            width: 100%;
+            height: 400px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 2;
+        }
+        
+        #error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 2;
+        }
+        
+        .snowflake {
+            position: absolute;
+            top: -20px;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: fall linear infinite;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .snowflake:nth-child(1) {
+            animation-duration: 8s;
+            left: 10%;
+        }
+        
+        .snowflake:nth-child(2) {
+            animation-duration: 10s;
+            left: 20%;
+        }
+        
+        .snowflake:nth-child(3) {
+            animation-duration: 12s;
+            left: 30%;
+        }
+        
+        .snowflake:nth-child(4) {
+            animation-duration: 14s;
+            left: 40%;
+        }
+        
+        .snowflake:nth-child(5) {
+            animation-duration: 16s;
+            left: 50%;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Reduced number of snowflakes for better performance -->
+    <div class="snowflake"></div>
+    <div class="snowflake"></div>
+    <div class="snowflake"></div>
+    <div class="snowflake"></div>
+    <div class="snowflake"></div>
+
+    <div class="content-container">
+        <h1>TP1</h1>
+        <div class="description">Explore and interact with the 3D model below. Click and drag to rotate, scroll to zoom.</div>
+        <a href="https://drive.google.com/drive/folders/1BIzkwNo8PvN_pTWWAZZ3DNHuOsw0HnZW?usp=drive_link" class="download-link">Download File</a>
+
+        <div id="model-viewer">
+            <div id="loading-screen">Loading model...</div>
+            <div id="error-message">Error loading model. Displaying fallback object.</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x2a2a2a);
+
+        // Set up camera
+        const camera = new THREE.PerspectiveCamera(75, 800 / 400, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Set up renderer
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true
+        });
+        renderer.setSize(800, 400);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+
+        // Add renderer to DOM
+        const container = document.getElementById('model-viewer');
+        container.appendChild(renderer.domElement);
+
+        // Lighting setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(-5, 5, -5);
+        scene.add(backLight);
+
+        // Add OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 2;
+        controls.maxDistance = 10;
+        controls.maxPolarAngle = Math.PI / 2;
+
+        // Create a default cube as fallback
+        function createFallbackCube() {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x00ff00,
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.rotation.y = Math.PI / 4;
+            scene.add(cube);
+
+            // Animate the cube
+            function animateCube() {
+                cube.rotation.y += 0.01;
+            }
+            return animateCube;
+        }
+
+        // Loading manager
+        const loadingManager = new THREE.LoadingManager();
+        const loadingScreen = document.getElementById('loading-screen');
+        const errorMessage = document.getElementById('error-message');
+
+        loadingManager.onLoad = function() {
+            loadingScreen.style.display = 'none';
+        };
+
+        loadingManager.onError = function() {
+            loadingScreen.style.display = 'none';
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        };
+
+        // Try to load the model
+        let cubeAnimation = null;
+        const loader = new THREE.GLTFLoader(loadingManager);
+        loader.load(
+            'chairs.glb', // Replace with your model path
+            function(gltf) {
+                const model = gltf.scene;
+                model.scale.set(2, 2, 2);
+                scene.add(model);
+
+                // Center the model
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.x += model.position.x - center.x;
+                model.position.y += model.position.y - center.y;
+                model.position.z += model.position.z - center.z;
+            },
+            undefined,
+            function(error) {
+                console.error('Error loading model:', error);
+                cubeAnimation = createFallbackCube();
+                loadingManager.onError();
+            }
+        );
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            if (cubeAnimation) cubeAnimation();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        function onWindowResize() {
+            const width = container.clientWidth;
+            const height = 400;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+        onWindowResize(); // Initial resize
+    </script>
+</body>
+
+</html>
